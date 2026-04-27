@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Assistant Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1410;
+            color: #f5f1e8;
+        }
+        .test-section {
+            background: rgba(42, 35, 28, 0.8);
+            border: 2px solid rgba(139, 105, 68, 0.4);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        button {
+            background: linear-gradient(135deg, #6b8e23, #5a8f3a);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            transform: scale(1.05);
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        .success {
+            background: rgba(184, 233, 148, 0.2);
+            color: #b8e994;
+            border: 2px solid rgba(184, 233, 148, 0.4);
+        }
+        .error {
+            background: rgba(196, 69, 54, 0.2);
+            color: #ffb4a8;
+            border: 2px solid rgba(196, 69, 54, 0.4);
+        }
+        .info {
+            background: rgba(212, 165, 116, 0.2);
+            color: #d4a574;
+            border: 2px solid rgba(212, 165, 116, 0.4);
+        }
+        #transcript {
+            background: rgba(107, 142, 35, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            min-height: 50px;
+            margin: 10px 0;
+            border: 2px solid rgba(107, 142, 35, 0.3);
+        }
+        h1 {
+            color: #6b8e23;
+        }
+        h2 {
+            color: #d4a574;
+        }
+        code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #b8e994;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎤 Voice Assistant Diagnostic Tool</h1>
+    <p>Use this page to test if voice recognition works on your system.</p>
+
+    <!-- System Check -->
+    <div class="test-section">
+        <h2>1. System Check</h2>
+        <div id="systemCheck"></div>
+    </div>
+
+    <!-- Internet Check -->
+    <div class="test-section">
+        <h2>2. Internet Connection</h2>
+        <div id="internetCheck"></div>
+    </div>
+
+    <!-- Microphone Test -->
+    <div class="test-section">
+        <h2>3. Microphone Test</h2>
+        <button onclick="testMicrophone()">Test Microphone Access</button>
+        <div id="micStatus"></div>
+    </div>
+
+    <!-- Speech Recognition Test -->
+    <div class="test-section">
+        <h2>4. Speech Recognition Test</h2>
+        <button id="startBtn" onclick="startRecognition()">Start Listening</button>
+        <button id="stopBtn" onclick="stopRecognition()" disabled>Stop Listening</button>
+        <div id="recognitionStatus"></div>
+        <div id="transcript"></div>
+    </div>
+
+    <!-- Text-to-Speech Test -->
+    <div class="test-section">
+        <h2>5. Text-to-Speech Test</h2>
+        <button onclick="testSpeech()">Test Voice Output</button>
+        <div id="speechStatus"></div>
+    </div>
+
+    <!-- Recommendations -->
+    <div class="test-section">
+        <h2>📋 Recommendations</h2>
+        <div id="recommendations"></div>
+    </div>
+
+    <script>
+        let recognition = null;
+        let isListening = false;
+
+        // 1. System Check
+        function checkSystem() {
+            const checks = [];
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            // Browser
+            const browser = navigator.userAgent.includes('Chrome') ? 'Chrome' : 
+                          navigator.userAgent.includes('Edge') ? 'Edge' :
+                          navigator.userAgent.includes('Safari') ? 'Safari' :
+                          navigator.userAgent.includes('Firefox') ? 'Firefox' : 'Unknown';
+            
+            checks.push({
+                name: 'Browser',
+                status: ['Chrome', 'Edge', 'Safari'].includes(browser),
+                message: `${browser} ${['Chrome', 'Edge', 'Safari'].includes(browser) ? '✅' : '❌ (Use Chrome/Edge/Safari)'}`
+            });
+
+            // Speech Recognition API
+            checks.push({
+                name: 'Speech Recognition API',
+                status: !!SpeechRecognition,
+                message: SpeechRecognition ? '✅ Available' : '❌ Not supported'
+            });
+
+            // Speech Synthesis API
+            checks.push({
+                name: 'Text-to-Speech API',
+                status: !!window.speechSynthesis,
+                message: window.speechSynthesis ? '✅ Available' : '❌ Not supported'
+            });
+
+            // HTTPS/Localhost
+            const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+            checks.push({
+                name: 'Secure Context',
+                status: isSecure,
+                message: isSecure ? '✅ HTTPS or localhost' : '❌ Requires HTTPS or localhost'
+            });
+
+            let html = '<ul style="list-style: none; padding: 0;">';
+            checks.forEach(check => {
+                html += `<li class="${check.status ? 'success' : 'error'}" style="margin: 5px 0; padding: 8px;">${check.message}</li>`;
+            });
+            html += '</ul>';
+            
+            document.getElementById('systemCheck').innerHTML = html;
+            return checks.every(c => c.status);
+        }
+
+        // 2. Internet Check
+        function checkInternet() {
+            const online = navigator.onLine;
+            const html = `
+                <div class="${online ? 'success' : 'error'}">
+                    ${online ? '✅ Connected to internet' : '❌ No internet connection detected'}
+                </div>
+                <p style="margin-top: 10px; color: #d4a574;">
+                    <strong>Important:</strong> Chrome's voice recognition requires internet connection to work.
+                    It sends audio to Google's servers for processing.
+                </p>
+            `;
+            document.getElementById('internetCheck').innerHTML = html;
+        }
+
+        // 3. Microphone Test
+        async function testMicrophone() {
+            const statusDiv = document.getElementById('micStatus');
+            statusDiv.innerHTML = '<div class="info">⏳ Requesting microphone access...</div>';
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                stream.getTracks().forEach(track => track.stop());
+                statusDiv.innerHTML = '<div class="success">✅ Microphone access granted!</div>';
+            } catch (err) {
+                statusDiv.innerHTML = `<div class="error">❌ Microphone access denied: ${err.message}</div>`;
+            }
+        }
+
+        // 4. Speech Recognition Test
+        function startRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            if (!SpeechRecognition) {
+                document.getElementById('recognitionStatus').innerHTML = 
+                    '<div class="error">❌ Speech Recognition not supported in this browser</div>';
+                return;
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = () => {
+                isListening = true;
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                document.getElementById('recognitionStatus').innerHTML = 
+                    '<div class="success">🎤 Listening... Speak now!</div>';
+                document.getElementById('transcript').innerHTML = '<em>Waiting for speech...</em>';
+            };
+
+            recognition.onresult = (event) => {
+                const transcript = Array.from(event.results)
+                    .map(result => result[0].transcript)
+                    .join('');
+                document.getElementById('transcript').innerHTML = `<strong>You said:</strong> "${transcript}"`;
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Recognition error:', event);
+                let errorMsg = '';
+                
+                switch(event.error) {
+                    case 'network':
+                        errorMsg = '❌ <strong>Network Error</strong><br>This is the most common issue!<br><br>' +
+                                 '🔍 <strong>What this means:</strong><br>' +
+                                 '• Chrome needs internet to use Google\'s speech service<br>' +
+                                 '• Check your internet connection<br>' +
+                                 '• Try opening google.com to verify<br>' +
+                                 '• Refresh this page and try again<br><br>' +
+                                 '💡 <strong>Solutions:</strong><br>' +
+                                 '1. Check WiFi/Ethernet connection<br>' +
+                                 '2. Disable VPN if using one<br>' +
+                                 '3. Check firewall settings<br>' +
+                                 '4. Try a different network';
+                        break;
+                    case 'not-allowed':
+                        errorMsg = '❌ Microphone permission denied. Click the lock icon in address bar and allow microphone.';
+                        break;
+                    case 'no-speech':
+                        errorMsg = '⚠️ No speech detected. Try speaking louder or closer to the microphone.';
+                        break;
+                    case 'audio-capture':
+                        errorMsg = '❌ No microphone found. Please connect a microphone.';
+                        break;
+                    default:
+                        errorMsg = `❌ Error: ${event.error}`;
+                }
+                
+                document.getElementById('recognitionStatus').innerHTML = `<div class="error">${errorMsg}</div>`;
+                resetButtons();
+            };
+
+            recognition.onend = () => {
+                isListening = false;
+                resetButtons();
+                if (document.getElementById('recognitionStatus').innerHTML.includes('Listening')) {
+                    document.getElementById('recognitionStatus').innerHTML = 
+                        '<div class="info">✅ Recognition ended. Click "Start Listening" to try again.</div>';
+                }
+            };
+
+            try {
+                recognition.start();
+            } catch (err) {
+                document.getElementById('recognitionStatus').innerHTML = 
+                    `<div class="error">❌ Failed to start: ${err.message}</div>`;
+                resetButtons();
+            }
+        }
+
+        function stopRecognition() {
+            if (recognition) {
+                recognition.stop();
+            }
+        }
+
+        function resetButtons() {
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+        }
+
+        // 5. Text-to-Speech Test
+        function testSpeech() {
+            if (!window.speechSynthesis) {
+                document.getElementById('speechStatus').innerHTML = 
+                    '<div class="error">❌ Text-to-Speech not supported</div>';
+                return;
+            }
+
+            const utterance = new SpeechSynthesisUtterance('Hello! Voice assistant is working correctly.');
+            utterance.lang = 'en-US';
+            utterance.rate = 0.9;
+            
+            utterance.onstart = () => {
+                document.getElementById('speechStatus').innerHTML = 
+                    '<div class="success">🔊 Speaking...</div>';
+            };
+            
+            utterance.onend = () => {
+                document.getElementById('speechStatus').innerHTML = 
+                    '<div class="success">✅ Text-to-Speech working!</div>';
+            };
+            
+            utterance.onerror = () => {
+                document.getElementById('speechStatus').innerHTML = 
+                    '<div class="error">❌ Speech synthesis failed</div>';
+            };
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // Generate Recommendations
+        function generateRecommendations() {
+            const systemOk = checkSystem();
+            const online = navigator.onLine;
+            
+            let recommendations = '<ul style="line-height: 1.8;">';
+            
+            if (!online) {
+                recommendations += '<li>🔴 <strong>Connect to internet</strong> - This is required for voice recognition</li>';
+            }
+            
+            if (!systemOk) {
+                recommendations += '<li>🔴 <strong>Use Chrome or Edge browser</strong> - Best support for voice features</li>';
+            }
+            
+            recommendations += '<li>✅ Click "Test Microphone Access" and allow permission</li>';
+            recommendations += '<li>✅ Click "Start Listening" and speak clearly</li>';
+            recommendations += '<li>✅ If you see "Network Error", check your internet connection</li>';
+            recommendations += '<li>💡 For best results: Use Chrome + Stable Internet + Quiet Environment</li>';
+            recommendations += '</ul>';
+            
+            recommendations += `
+                <div style="margin-top: 20px; padding: 15px; background: rgba(107, 142, 35, 0.1); border-radius: 8px; border: 2px solid rgba(107, 142, 35, 0.3);">
+                    <strong>📖 Need more help?</strong><br>
+                    Check the detailed troubleshooting guide: <code>VOICE_TROUBLESHOOTING.md</code>
+                </div>
+            `;
+            
+            document.getElementById('recommendations').innerHTML = recommendations;
+        }
+
+        // Run checks on load
+        window.onload = () => {
+            checkSystem();
+            checkInternet();
+            generateRecommendations();
+        };
+
+        // Update internet status periodically
+        setInterval(checkInternet, 5000);
+    </script>
+</body>
+</html>
