@@ -2,6 +2,7 @@ import logging
 from apscheduler.schedulers.background import BackgroundScheduler
 from services.weather_service import fetch_weather, check_severe_weather
 from services.sms_service import send_weather_alert_sms
+from services.email_service import send_weather_alert_email
 from database.base import SessionLocal
 from database import models
 
@@ -11,7 +12,7 @@ logger = logging.getLogger(__name__)
 def check_weather_anomalies():
     """
     Runs every hour. Fetches real-time weather for all unique user locations,
-    checks for severe conditions, saves alerts to DB, and sends SMS if configured.
+    checks for severe conditions, saves alerts to DB, and sends SMS/Email if configured.
     """
     db = SessionLocal()
     try:
@@ -47,11 +48,22 @@ def check_weather_anomalies():
                 db.commit()
 
                 # Send SMS alert
-                result = send_weather_alert_sms(full_sms, location=user_input.location)
-                if result["sent"] > 0:
-                    logger.info(f"SMS alert sent for {user_input.location}: {anomaly} ({result['sent']} recipients)")
+                sms_result = send_weather_alert_sms(full_sms, location=user_input.location)
+                if sms_result["sent"] > 0:
+                    logger.info(f"SMS alert sent for {user_input.location}: {anomaly} ({sms_result['sent']} recipients)")
                 else:
-                    logger.info(f"Weather alert saved for {user_input.location}: {anomaly} (SMS not configured)")
+                    logger.info(f"SMS not configured for {user_input.location}")
+
+                # Send Email alert (works in India without restrictions!)
+                email_result = send_weather_alert_email(
+                    weather_data=weather,
+                    location=user_input.location,
+                    severity_info=severity_info
+                )
+                if email_result.get("success"):
+                    logger.info(f"📧 Email alert sent for {user_input.location}: {anomaly} ({email_result['sent']} recipients)")
+                else:
+                    logger.info(f"Email not configured for {user_input.location}")
 
     except Exception as e:
         logger.error(f"Weather check job failed: {e}")

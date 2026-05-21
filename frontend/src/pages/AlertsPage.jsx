@@ -17,6 +17,8 @@ export default function AlertsPage() {
   const [weatherLoading, setWeatherLoading] = useState(false);
   const [phone, setPhone] = useState('');
   const [phoneMsg, setPhoneMsg] = useState('');
+  const [email, setEmail] = useState('');
+  const [emailMsg, setEmailMsg] = useState('');
   const [cityInput, setCityInput] = useState('Pune');
 
   const fetchAlerts = () => {
@@ -42,12 +44,76 @@ export default function AlertsPage() {
 
   const handleRegisterPhone = async () => {
     if (!phone) return;
+    
+    // Get current location from weather state or use cityInput
+    const currentLocation = weather?.location || cityInput || 'Pune';
+    
     try {
-      const res = await fetch(`http://localhost:8000/register-phone?phone=${encodeURIComponent(phone)}`, { method: 'POST' });
+      const res = await fetch(
+        `http://localhost:8000/register-phone?phone=${encodeURIComponent(phone)}&location=${encodeURIComponent(currentLocation)}`, 
+        { method: 'POST' }
+      );
       const data = await res.json();
-      setPhoneMsg(data.message);
+      
+      if (data.sms_sent) {
+        setPhoneMsg(`✅ Registered! SMS sent with current weather for ${currentLocation}.`);
+      } else {
+        setPhoneMsg(`✅ ${data.message} (SMS not configured)`);
+      }
+      
+      // Show weather info in message
+      if (data.current_weather) {
+        const w = data.current_weather;
+        setTimeout(() => {
+          setPhoneMsg(
+            `✅ Registered for ${w.location}! Current: ${w.temperature}°C, ${w.condition}. ` +
+            `${w.is_severe ? `⚠️ ${w.anomaly}` : 'Weather normal.'}`
+          );
+        }, 2000);
+      }
     } catch {
-      setPhoneMsg('Failed to register. Ensure backend is running.');
+      setPhoneMsg('❌ Failed to register. Ensure backend is running.');
+    }
+  };
+
+  const handleRegisterEmail = async () => {
+    if (!email) return;
+    
+    // Validate email format
+    const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailPattern.test(email)) {
+      setEmailMsg('❌ Please enter a valid email address.');
+      return;
+    }
+    
+    // Get current location from weather state or use cityInput
+    const currentLocation = weather?.location || cityInput || 'Pune';
+    
+    try {
+      const res = await fetch(
+        `http://localhost:8000/register-email?email=${encodeURIComponent(email)}&location=${encodeURIComponent(currentLocation)}`, 
+        { method: 'POST' }
+      );
+      const data = await res.json();
+      
+      if (data.email_sent) {
+        setEmailMsg(`✅ Registered! Welcome email sent with current weather for ${currentLocation}.`);
+      } else {
+        setEmailMsg(`✅ ${data.message}`);
+      }
+      
+      // Show weather info in message
+      if (data.current_weather) {
+        const w = data.current_weather;
+        setTimeout(() => {
+          setEmailMsg(
+            `✅ Registered for ${w.location}! Current: ${w.temperature}°C, ${w.condition}. ` +
+            `${w.is_severe ? `⚠️ ${w.anomaly}` : 'Weather normal.'}`
+          );
+        }, 2000);
+      }
+    } catch (error) {
+      setEmailMsg('❌ Failed to register. Ensure backend is running and email is configured.');
     }
   };
 
@@ -136,6 +202,33 @@ export default function AlertsPage() {
         {phoneMsg && <p style={{ marginTop: '0.8rem', color: '#b8e994', fontSize: '0.95rem', fontWeight: 500 }}>✅ {phoneMsg}</p>}
         <p style={{ marginTop: '1rem', color: '#d4a574', fontSize: '0.85rem', lineHeight: '1.5' }}>
           {t('smsNote')}
+        </p>
+      </div>
+
+      {/* Email Registration - Works in India! */}
+      <div className="glass-panel" style={{ marginBottom: '2rem', background: 'rgba(59, 130, 246, 0.1)', border: '2px solid rgba(59, 130, 246, 0.3)' }}>
+        <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.8rem', color: '#a5b4fc' }}>
+          📧 Email Weather Alerts (Recommended for India 🇮🇳)
+        </h3>
+        <p style={{ color: '#d4a574', fontSize: '0.95rem', marginBottom: '1rem', lineHeight: '1.6' }}>
+          Get detailed weather alerts via email with beautiful formatting. Works instantly in India without any restrictions! 🎉
+        </p>
+        <div style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap' }}>
+          <input
+            type="email"
+            placeholder="your.email@gmail.com"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleRegisterEmail()}
+            style={{ flex: 1, minWidth: '220px', background: 'rgba(255, 248, 240, 0.08)', border: '2px solid rgba(139, 105, 68, 0.3)', borderRadius: '10px', padding: '10px 16px', color: '#f5f1e8', fontSize: '0.95rem' }}
+          />
+          <button onClick={handleRegisterEmail} className="btn btn-primary" style={{ padding: '10px 24px', background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' }}>
+            Register Email
+          </button>
+        </div>
+        {emailMsg && <p style={{ marginTop: '0.8rem', color: emailMsg.includes('❌') ? '#ffb4a8' : '#a5b4fc', fontSize: '0.95rem', fontWeight: 500 }}>{emailMsg}</p>}
+        <p style={{ marginTop: '1rem', color: '#d4a574', fontSize: '0.85rem', lineHeight: '1.5' }}>
+          ✅ No restrictions • ✅ Rich HTML formatting • ✅ Instant delivery • ✅ Free (100-500 emails/day)
         </p>
       </div>
 

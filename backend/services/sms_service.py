@@ -38,6 +38,7 @@ def send_weather_alert_sms(message: str, location: str = "") -> dict:
     Returns:
         {"sent": int, "failed": int, "sids": list[str]}
     """
+    messaging_service_sid = os.getenv("TWILIO_MESSAGING_SERVICE_SID", "")
     from_number = os.getenv("TWILIO_FROM_NUMBER", "")
     numbers_raw = os.getenv("ALERT_PHONE_NUMBERS", "")
 
@@ -58,11 +59,19 @@ def send_weather_alert_sms(message: str, location: str = "") -> dict:
 
     for number in phone_numbers:
         try:
-            msg = client.messages.create(
-                body=message,
-                from_=from_number,
-                to=number
-            )
+            # Use MessagingServiceSid if available, otherwise use from_number
+            if messaging_service_sid:
+                msg = client.messages.create(
+                    body=message,
+                    messaging_service_sid=messaging_service_sid,
+                    to=number
+                )
+            else:
+                msg = client.messages.create(
+                    body=message,
+                    from_=from_number,
+                    to=number
+                )
             sids.append(msg.sid)
             sent += 1
             logger.info(f"SMS sent to {number} (SID: {msg.sid}) for location: {location}")
@@ -75,9 +84,12 @@ def send_weather_alert_sms(message: str, location: str = "") -> dict:
 
 def is_sms_configured() -> bool:
     """Check if Twilio SMS is properly configured."""
+    has_messaging_service = bool(os.getenv("TWILIO_MESSAGING_SERVICE_SID"))
+    has_from_number = bool(os.getenv("TWILIO_FROM_NUMBER"))
+    
     return bool(
         os.getenv("TWILIO_ACCOUNT_SID") and
         os.getenv("TWILIO_AUTH_TOKEN") and
-        os.getenv("TWILIO_FROM_NUMBER") and
+        (has_messaging_service or has_from_number) and
         os.getenv("ALERT_PHONE_NUMBERS")
     )

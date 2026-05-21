@@ -1,7 +1,7 @@
 export const translations = {
   en: {
     // Navbar
-    appName: "KrushiSahayak",
+    appName: "BalirajaSahayak",
     navInput: "Input",
     navPlan: "Plan",
     navDisease: "Disease Detect",

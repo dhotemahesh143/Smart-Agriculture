@@ -1,10 +1,10 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-dom';
 import { Leaf, Sprout, LayoutDashboard, Bell, Microscope, Droplet } from 'lucide-react';
+import HomePage from './pages/HomePage';
 import InputPage from './pages/InputPage';
 import RecommendationPage from './pages/RecommendationPage';
 import Dashboard from './pages/Dashboard';
-import TestDashboard from './pages/TestDashboard';
 import AlertsPage from './pages/AlertsPage';
 import DiseaseDetection from './pages/DiseaseDetection';
 import VoiceAssistantPage from './pages/VoiceAssistantPage';
@@ -26,6 +26,9 @@ function Navbar() {
         {t('appName')}
       </NavLink>
       <div className="nav-links">
+        <NavLink to="/" className={({isActive}) => `nav-link ${isActive ? 'active' : ''}`}>
+          <LayoutDashboard size={18} style={{marginRight: '6px', verticalAlign: 'middle'}}/> Dashboard
+        </NavLink>
         <NavLink to="/input" className={({isActive}) => `nav-link ${isActive ? 'active' : ''}`}>
           <Sprout size={18} style={{marginRight: '6px', verticalAlign: 'middle'}}/> {t('navInput')}
         </NavLink>
@@ -82,7 +85,7 @@ function App() {
         <Navbar />
         <main className="container page-transition">
           <Routes>
-            <Route path="/" element={<TestDashboard />} />
+            <Route path="/" element={<HomePage />} />
             <Route path="/input" element={<InputPage />} />
             <Route path="/recommendation" element={<RecommendationPage />} />
             <Route path="/fertilizer" element={<FertilizerPage />} />

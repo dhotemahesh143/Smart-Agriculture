@@ -20,6 +20,8 @@ export default function VoiceAssistant({ onCommand, context = {}, onChatResponse
   const [showLanguages, setShowLanguages] = useState(false);
   const [error, setError] = useState('');
   const [isSupported, setIsSupported] = useState(true);
+  const [showTextInput, setShowTextInput] = useState(false);
+  const [textInput, setTextInput] = useState('');
   
   const recognitionRef = useRef(null);
   const synthRef = useRef(window.speechSynthesis);
@@ -68,7 +70,16 @@ export default function VoiceAssistant({ onCommand, context = {}, onChatResponse
         setError('Microphone access denied. Please allow microphone access in browser settings.');
       } else if (event.error === 'network') {
         // Network error - Chrome's speech service requires internet
-        setError('Internet connection required for voice recognition. Please check your connection and try again.');
+        // Check if it's actually a connectivity issue or just Chrome's requirement
+        fetch('https://www.google.com/favicon.ico', { mode: 'no-cors' })
+          .then(() => {
+            // Internet is working, it's just Chrome's speech service issue
+            setError('Voice recognition service unavailable. Please try again or check your internet connection.');
+          })
+          .catch(() => {
+            // Actually no internet
+            setError('Internet connection required for voice recognition. Please check your connection and try again.');
+          });
       } else if (event.error === 'aborted') {
         // Silently handle aborted (user stopped)
         setError('');
@@ -79,6 +90,9 @@ export default function VoiceAssistant({ onCommand, context = {}, onChatResponse
       } else {
         setError(`Voice recognition error: ${event.error}. Please try again.`);
       }
+      
+      // Show text input as fallback
+      setShowTextInput(true);
       
       // Auto-clear error after 8 seconds
       setTimeout(() => setError(''), 8000);
@@ -506,6 +520,28 @@ export default function VoiceAssistant({ onCommand, context = {}, onChatResponse
           >
             <Languages size={20} color="#d4a574" />
           </button>
+
+          {/* Text Input Button */}
+          <button
+            onClick={() => setShowTextInput(!showTextInput)}
+            style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '50%',
+              background: showTextInput 
+                ? 'linear-gradient(135deg, #6b8e23, #5a8f3a)'
+                : 'rgba(255, 248, 240, 0.1)',
+              border: '2px solid rgba(139, 105, 68, 0.3)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.3s ease',
+            }}
+            title="Type instead of speaking"
+          >
+            <span style={{ fontSize: '20px', color: showTextInput ? '#fff' : '#d4a574' }}>💬</span>
+          </button>
         </div>
 
         {/* Language Selector */}
@@ -599,9 +635,131 @@ export default function VoiceAssistant({ onCommand, context = {}, onChatResponse
             padding: '12px 16px',
             color: '#ffb4a8',
             fontSize: '0.85rem',
-            maxWidth: '300px',
+            maxWidth: '320px',
+            lineHeight: '1.5',
           }}>
+            <div style={{ fontWeight: 600, marginBottom: '6px' }}>⚠️ Voice Recognition Error</div>
             {error}
+            {error.includes('Internet connection') && (
+              <div style={{
+                marginTop: '10px',
+                padding: '8px 10px',
+                background: 'rgba(212, 165, 116, 0.15)',
+                border: '1px solid rgba(212, 165, 116, 0.3)',
+                borderRadius: '6px',
+                fontSize: '0.8rem',
+                color: '#d4a574',
+              }}>
+                <strong>Why?</strong> Chrome's voice recognition uses Google's cloud service.
+                <br />
+                <strong>Fix:</strong> Check your internet connection and firewall settings.
+                <br />
+                <strong>Alternative:</strong> Use the text input below instead!
+              </div>
+            )}
+            <button
+              onClick={() => setShowTextInput(true)}
+              style={{
+                marginTop: '10px',
+                padding: '8px 16px',
+                background: 'linear-gradient(135deg, #6b8e23, #5a8f3a)',
+                border: 'none',
+                borderRadius: '8px',
+                color: 'white',
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                width: '100%',
+              }}
+            >
+              💬 Use Text Input Instead
+            </button>
+          </div>
+        )}
+
+        {/* Text Input Fallback */}
+        {showTextInput && (
+          <div style={{
+            background: 'rgba(42, 35, 28, 0.98)',
+            backdropFilter: 'blur(20px)',
+            border: '2px solid rgba(107, 142, 35, 0.4)',
+            borderRadius: '14px',
+            padding: '14px 18px',
+            maxWidth: '350px',
+            animation: 'slideUp 0.3s ease-out',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <span style={{ color: '#b8e994', fontSize: '0.9rem', fontWeight: 600 }}>
+                💬 Type Your Question
+              </span>
+              <button
+                onClick={() => setShowTextInput(false)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#d4a574',
+                  cursor: 'pointer',
+                  fontSize: '1.2rem',
+                  padding: '0',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <input
+              type="text"
+              value={textInput}
+              onChange={(e) => setTextInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && textInput.trim()) {
+                  processVoiceCommand(textInput);
+                  setTextInput('');
+                }
+              }}
+              placeholder="Type your farming question..."
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                background: 'rgba(255, 248, 240, 0.08)',
+                border: '2px solid rgba(139, 105, 68, 0.3)',
+                borderRadius: '10px',
+                color: '#f5f1e8',
+                fontSize: '0.9rem',
+                marginBottom: '10px',
+              }}
+            />
+            <button
+              onClick={() => {
+                if (textInput.trim()) {
+                  processVoiceCommand(textInput);
+                  setTextInput('');
+                }
+              }}
+              disabled={!textInput.trim()}
+              style={{
+                width: '100%',
+                padding: '10px',
+                background: textInput.trim() 
+                  ? 'linear-gradient(135deg, #6b8e23, #5a8f3a)'
+                  : 'rgba(107, 142, 35, 0.3)',
+                border: 'none',
+                borderRadius: '10px',
+                color: 'white',
+                fontSize: '0.9rem',
+                fontWeight: 600,
+                cursor: textInput.trim() ? 'pointer' : 'not-allowed',
+              }}
+            >
+              Send Question
+            </button>
+            <p style={{ 
+              color: '#d4a574', 
+              fontSize: '0.75rem', 
+              marginTop: '8px', 
+              marginBottom: 0,
+              textAlign: 'center' 
+            }}>
+              Works without microphone or internet issues
+            </p>
           </div>
         )}
       </div>
@@ -614,6 +772,10 @@ export default function VoiceAssistant({ onCommand, context = {}, onChatResponse
         @keyframes slideUp {
           from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
       `}</style>
     </>

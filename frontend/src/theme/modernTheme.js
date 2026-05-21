@@ -1,4 +1,4 @@
-// Modern Design System for KrushiSahayak
+// Modern Design System for BalirajaSahayak
 // Dark theme with blue/purple accents and glassmorphism
 
 export const modernColors = {
